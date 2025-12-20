@@ -1,0 +1,10 @@
+import 'package:mobile/features/profile/domain/entities/user.dart';
+import 'package:mobile/features/profile/domain/repositories/user_repository.dart';
+
+class GetUserProfile {
+  final UserRepository repository;
+  GetUserProfile(this.repository);
+  Future<User> call(String uid) {
+    return repository.getUser(uid);
+  }
+}

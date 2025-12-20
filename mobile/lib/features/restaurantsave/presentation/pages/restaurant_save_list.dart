@@ -1,0 +1,119 @@
+// ignore_for_file: unused_field
+
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:mobile/core/data/api/api_client.dart';
+import 'package:mobile/features/home/data/data/restaurant_remote_datasource.dart';
+import 'package:mobile/features/home/data/repositories/restaurant_repository_impl.dart';
+import 'package:mobile/features/home/domain/entities/restaurant.dart';
+import 'package:mobile/features/home/domain/usecase/get_restaurant.dart';
+import 'package:mobile/features/home/domain/usecase/update_restaurant.dart';
+import 'package:mobile/features/home/presentation/pages/detail_restaurant.dart';
+import 'package:mobile/features/restaurantsave/data/data/restaurant_save_remote_datasource.dart';
+import 'package:mobile/features/restaurantsave/data/repositories/restaurant_save_repository_impl.dart';
+import 'package:mobile/features/restaurantsave/domain/usecase/delete_saved_restaurant.dart';
+import 'package:mobile/features/restaurantsave/domain/usecase/get_saved_restaurants.dart';
+import 'package:mobile/features/restaurantsave/domain/entities/save.dart';
+import 'package:mobile/features/restaurantsave/presentation/widget/body_list_save.dart';
+import 'package:mobile/features/restaurantsave/presentation/widget/dialog_confirm.dart';
+
+class RestaurantSaveListPage extends StatefulWidget {
+  final String uid;
+
+  const RestaurantSaveListPage({super.key, required this.uid});
+
+  @override
+  State<RestaurantSaveListPage> createState() => _RestaurantSaveListPageState();
+}
+
+class _RestaurantSaveListPageState extends State<RestaurantSaveListPage> {
+  late final _remoteSave = RestaurantSaveRemoteDatasourceImpl();
+  late final _repoSave = RestaurantSaveRepositoryImpl(_remoteSave);
+  late final _getSave = GetSavedRestaurants(_repoSave);
+
+  late final _deleteSave = DeleteSavedRestaurant(_repoSave);
+
+  late final _dio = Dio();
+  late final _apiClient = ApiClient(dio: _dio);
+  late final _remoteRestaurant = RestaurantsRemoteDataSourceImpl(
+    apiClient: _apiClient,
+  );
+  late final _repoRestaurant = RestaurantRepositoryImpl(_remoteRestaurant);
+  late final _getRestaurant = GetRestaurant(_repoRestaurant);
+  late final _updateRestaurant = UpdateRestaurant(_repoRestaurant);
+  bool _isLoading = true;
+  List<Save> _savedList = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedData();
+  }
+
+  Future<void> _loadSavedData() async {
+    final result = await _getSave(widget.uid);
+    setState(() {
+      _savedList = result;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _deleteItem(Save saveItem) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => DialogConfirm(saveItem: saveItem),
+    );
+
+    if (confirm == true) {
+      await _deleteSave(saveItem.id);
+      setState(() {
+        _savedList.remove(saveItem);
+      });
+    } else {
+      return;
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Đã xóa "${saveItem.restaurantName}"'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  void _openDetailRestaurant(Restaurant restaurant) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DetailRestaurantPage(
+          restaurant: restaurant,
+          updateRestaurant: _updateRestaurant,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryColor = theme.primaryColor;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Đã Lưu'),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+      ),
+      body: BodyListSave(
+        loadSavedData: _loadSavedData,
+        savedList: _savedList,
+        deleteItem: _deleteItem,
+        getRestaurant: _getRestaurant,
+        openDetailRestaurant: _openDetailRestaurant,
+      ),
+    );
+  }
+}

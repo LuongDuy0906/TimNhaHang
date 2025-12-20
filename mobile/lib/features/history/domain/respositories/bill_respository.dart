@@ -1,0 +1,10 @@
+import 'package:mobile/features/history/domain/entities/bill.dart';
+
+abstract class BillReposiitory {
+  Future<List<Bill>> getBills();
+  Future<List<Bill>> getAllBillsByUid(String uid);
+  Future<Bill> getBill(String id);
+  Future<void> createBill(Bill note);
+  Future<void> updateBill(Bill note);
+  Future<void> deleteBill(String id);
+}

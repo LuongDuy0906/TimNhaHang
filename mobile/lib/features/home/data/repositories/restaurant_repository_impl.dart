@@ -1,0 +1,32 @@
+import 'package:mobile/features/home/data/data/restaurant_remote_datasource.dart';
+import 'package:mobile/features/home/data/models/restaurant_model.dart';
+import 'package:mobile/features/home/domain/entities/restaurant.dart';
+import 'package:mobile/features/home/domain/repositories/restaurant_repository.dart';
+
+class RestaurantRepositoryImpl extends RestaurantRepository {
+  final RestaurantRemoteDatasource remoteDataSource;
+  RestaurantRepositoryImpl(this.remoteDataSource);
+  @override
+  Future<List<Restaurant>> getRestaurants() async {
+    //hàm getRestaurants được gọi
+    List<RestaurantModel> restaurantModels = await remoteDataSource.getAll();
+    return restaurantModels;
+  }
+
+  @override
+  Future<Restaurant?> getRestaurant(String id) async {
+    RestaurantModel? restaurantModel = await remoteDataSource.getRestaurant(id);
+    return restaurantModel;
+  }
+
+  @override
+  Future<void> updateNote(Restaurant restaurant) async {
+    await remoteDataSource.update(RestaurantModel.fromEntity(restaurant));
+  }
+
+  @override
+  Future<List<Restaurant>> searchRestaurant(String text) async {
+    List<Restaurant> search = await remoteDataSource.search(text);
+    return search;
+  }
+}
