@@ -24,7 +24,7 @@ class ApiClient {
 
   ApiClient({required this.dio}) {
     // --- 3. Cấu hình Dio tập trung ---
-    dio.options.baseUrl = 'http://localhost:8080/api'; // <-- URL gốc của bạn
+    dio.options.baseUrl = 'http://10.0.2.2:8080/api'; // <-- URL gốc của bạn
     dio.options.connectTimeout = Duration(seconds: 10);
     dio.options.receiveTimeout = Duration(seconds: 10);
     dio.options.headers['Content-Type'] = 'application/json';

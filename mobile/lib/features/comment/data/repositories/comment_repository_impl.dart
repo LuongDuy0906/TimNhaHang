@@ -15,9 +15,9 @@ class CommentRepositoryImpl extends CommentRepository {
   }
 
   @override
-  Future<List<Comment>> getCommentById(String restaurantId) async {
+  Future<List<Comment>> getCommentById(String restaurantId, int size) async {
     List<CommentModel> comments = await commentRemoteDatasource.getAllById(
-      restaurantId,
+      restaurantId, size
     );
     return comments;
   }

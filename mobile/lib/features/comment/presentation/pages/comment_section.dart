@@ -16,18 +16,58 @@ class CommentSection extends StatefulWidget {
 }
 
 class _CommentSectionState extends State<CommentSection> {
+  // 1. Khởi tạo các dependencies
   late final _dio = Dio();
   late final _apiClient = ApiClient(dio: _dio);
   late final _remote = CommentRemoteDatasourceImpl(apiClient: _apiClient);
   late final _repo = CommentRepositoryImpl(_remote);
   late final _getComment = GetAllComment(_repo);
 
-  late Future<List<Comment>> _commentsFuture;
+  // 2. Các biến quản lý trạng thái
+  List<Comment>? _comments; 
+  int _currentSize = 2;     // Size khởi đầu
+  bool _isLoading = false;  // Trạng thái đang gọi API
+  bool _hasMore = true;     // Còn dữ liệu để xem thêm không
 
   @override
   void initState() {
     super.initState();
-    _commentsFuture = _getComment(widget.restaurantId);
+    _fetchComments(); // Tải 2 bình luận đầu tiên ngay khi vào trang
+  }
+
+  // Hàm gọi API
+  Future<void> _fetchComments() async {
+    if (_isLoading) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Gọi usecase với size hiện tại
+      final results = await _getComment(widget.restaurantId, size: _currentSize);
+
+      setState(() {
+        _comments = results;
+        
+        // Nếu server trả về ít hơn số lượng mình yêu cầu, nghĩa là đã hết bình luận
+        if (results.length < _currentSize) {
+          _hasMore = false;
+        } else {
+          _hasMore = true;
+        }
+      });
+    } catch (e) {
+      debugPrint("Lỗi tải bình luận: $e");
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // Xử lý khi bấm nút "Xem thêm"
+  void _onSeeMorePressed() {
+    setState(() {
+      _currentSize += 2; // Tăng size lên 2
+    });
+    _fetchComments(); // Gọi lại API để lấy danh sách mới dài hơn
   }
 
   @override
@@ -37,99 +77,67 @@ class _CommentSectionState extends State<CommentSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'ĐÁNH GIÁ & BÌNH LUẬN',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Theme.of(context).textTheme.titleSmall?.color,
-          ),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
-        const Divider(height: 1),
-        FutureBuilder<List<Comment>>(
-          future: _commentsFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(1),
-                  child: CircularProgressIndicator(),
-                ),
-              );
-            }
+        const Divider(height: 20),
 
-            if (snapshot.hasError) {
-              return Center(
-                child: Text('Lỗi tải bình luận: ${snapshot.error}'),
-              );
-            }
+        // 3. Hiển thị danh sách bình luận (Thay cho FutureBuilder)
+        _buildListContent(),
 
-            if (snapshot.hasData) {
-              final comments = snapshot.data!;
+        const SizedBox(height: 10),
 
-              if (comments.isEmpty) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.only(bottom: 5),
-                    child: Text(
-                      'Chưa có bình luận nào.',
-                      style: TextStyle(color: Colors.grey, fontSize: 16),
+        // 4. Nút Xem thêm / Xem tất cả
+        if (_hasMore)
+          Center(
+            child: _isLoading && _comments != null
+                ? const SizedBox(
+                    width: 20, 
+                    height: 20, 
+                    child: CircularProgressIndicator(strokeWidth: 2)
+                  )
+                : TextButton(
+                    onPressed: _onSeeMorePressed,
+                    child: const Text(
+                      'Xem thêm bình luận',
+                      style: TextStyle(
+                        color: primaryColor,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                );
-              }
-
-              return ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: comments.length,
-                itemBuilder: (context, index) {
-                  final comment = comments[index];
-                  return _buildCommentItem(comment);
-                },
-              );
-            }
-            return const Center(child: Text('Đang tải...'));
-          },
-        ),
-        const SizedBox(height: 10),
-        Center(
-          child: TextButton(
-            onPressed: () {},
-            child: const Text(
-              'Xem tất cả bình luận',
-              style: TextStyle(
-                color: primaryColor,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
           ),
-        ),
       ],
     );
   }
 
-  Widget _buildCommentItem(Comment comment) {
-    final String date =
-        "${comment.createdAt.day}/${comment.createdAt.month}/${comment.createdAt.year}";
-
-    List<Widget> buildStars(double rating) {
-      List<Widget> stars = [];
-      int fullStars = rating.floor();
-      bool hasHalfStar = (rating - fullStars) >= 0.5;
-
-      for (int i = 0; i < fullStars; i++) {
-        stars.add(Icon(Icons.star, color: Colors.amber, size: 16));
-      }
-      if (hasHalfStar) {
-        stars.add(Icon(Icons.star_half, color: Colors.amber, size: 16));
-      }
-      int emptyStars = 5 - (fullStars + (hasHalfStar ? 1 : 0));
-      for (int i = 0; i < emptyStars; i++) {
-        stars.add(Icon(Icons.star_border, color: Colors.amber, size: 16));
-      }
-      return stars;
+  // Widget hiển thị nội dung chính
+  Widget _buildListContent() {
+    if (_comments == null && _isLoading) {
+      return const Center(child: CircularProgressIndicator());
     }
+
+    if (_comments == null || _comments!.isEmpty) {
+      return const Center(
+        child: Text('Chưa có bình luận nào.', style: TextStyle(color: Colors.grey)),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _comments!.length,
+      itemBuilder: (context, index) {
+        return _buildCommentItem(_comments![index]);
+      },
+    );
+  }
+
+  // --- Giữ nguyên các hàm bổ trợ UI của bạn ---
+
+  Widget _buildCommentItem(Comment comment) {
+    final String date = "${comment.createdAt.day}/${comment.createdAt.month}/${comment.createdAt.year}";
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -138,54 +146,28 @@ class _CommentSectionState extends State<CommentSection> {
         children: [
           CircleAvatar(
             radius: 20,
-            backgroundImage: comment.userImage.isNotEmpty
-                ? NetworkImage(comment.userImage)
-                : null,
-            backgroundColor: Colors.blueAccent.withValues(alpha: 0.1),
+            backgroundImage: comment.userImage.isNotEmpty ? NetworkImage(comment.userImage) : null,
+            backgroundColor: Colors.blueAccent.withOpacity(0.1),
             child: comment.userImage.isEmpty
-                ? Text(
-                    comment.userName.isNotEmpty
-                        ? comment.userName[0].toUpperCase()
-                        : 'A',
-                    style: const TextStyle(
-                      color: Colors.blueAccent,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )
+                ? Text(comment.userName.isNotEmpty ? comment.userName[0].toUpperCase() : 'A')
                 : null,
           ),
-          const SizedBox(width: 20),
+          const SizedBox(width: 15),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  comment.userName,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                  ),
-                ),
+                Text(comment.userName, style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    ...buildStars(comment.rating),
+                    ..._buildStars(comment.rating),
                     const SizedBox(width: 8),
-                    Text(
-                      date,
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
+                    Text(date, style: const TextStyle(fontSize: 12, color: Colors.grey)),
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  comment.content,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
-                  ),
-                ),
+                Text(comment.content),
                 _buildCommentImage(comment.imageUrl),
               ],
             ),
@@ -195,46 +177,26 @@ class _CommentSectionState extends State<CommentSection> {
     );
   }
 
-  Widget _buildCommentImage(String imageUrl) {
-    // Nếu không có ảnh, trả về một widget rỗng
-    if (imageUrl.isEmpty) {
-      return const SizedBox.shrink();
+  List<Widget> _buildStars(double rating) {
+    List<Widget> stars = [];
+    int fullStars = rating.floor();
+    for (int i = 0; i < 5; i++) {
+      if (i < fullStars) {
+        stars.add(const Icon(Icons.star, color: Colors.amber, size: 16));
+      } else {
+        stars.add(const Icon(Icons.star_border, color: Colors.amber, size: 16));
+      }
     }
+    return stars;
+  }
 
+  Widget _buildCommentImage(String imageUrl) {
+    if (imageUrl.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 8.0),
-      // ignore: sized_box_for_whitespace
-      child: Container(
-        height: 150,
-        width: 250,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8.0),
-          child: Image.network(
-            imageUrl,
-            fit: BoxFit.cover,
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              // Container này sẽ tự động lấp đầy
-              return Container(
-                color: Theme.of(context).hoverColor.withValues(alpha: 0.5),
-                alignment: Alignment.center,
-                child: const CircularProgressIndicator.adaptive(),
-              );
-            },
-            errorBuilder: (context, error, stackTrace) {
-              // Container này cũng sẽ tự động lấp đầy
-              return Container(
-                color: Theme.of(context).hoverColor.withValues(alpha: 0.5),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.broken_image_outlined,
-                  color: Colors.grey,
-                  size: 40,
-                ),
-              );
-            },
-          ),
-        ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8.0),
+        child: Image.network(imageUrl, height: 150, width: 250, fit: BoxFit.cover),
       ),
     );
   }

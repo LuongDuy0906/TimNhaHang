@@ -22,7 +22,7 @@ class RestaurantModel extends Restaurant {
       address: json['address'] ?? '',
       category: json['category'] ?? '',
       closing: json['closing'] ?? '',
-      imageUrl: json['image_url'] ?? '',
+      imageUrl: json['imageUrl'] ?? '',
       name: json['name'] ?? '',
       opening: json['opening'] ?? '',
       priceRange: json['price_range'] ?? '',

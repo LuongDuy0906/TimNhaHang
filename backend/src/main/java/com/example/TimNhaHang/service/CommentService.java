@@ -1,9 +1,10 @@
 package com.example.TimNhaHang.service;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import com.example.TimNhaHang.dto.comments.CommentGetDTO;
@@ -22,15 +23,12 @@ public class CommentService {
     @Autowired
     RestaurantRepo restaurantRepo;
 
-    public List<CommentGetDTO> getAllByRestaurantId(int id) {
-        List<Comment> comments = commentRepo.findAllByRestaurantIdWithRestaurant(id);
-        List<CommentGetDTO> response = new ArrayList<>();
+    public Page<CommentGetDTO> getAllByRestaurantId(int id, int size, int page) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        for (Comment comment : comments) {
-            response.add(new CommentGetDTO(comment));
-        }
+        Page<Comment> comments = commentRepo.findAllByRestaurantId(id, pageable);
 
-        return response;
+        return comments.map(comment -> new CommentGetDTO(comment));
     }
 
     public CommentGetDTO addComment(CommentPostDTO dto) {

@@ -3,7 +3,7 @@ import 'package:mobile/core/data/firebase_remote_datasource.dart';
 import 'package:mobile/features/comment/data/model/comment_model.dart';
 
 abstract class CommentRemoteDatasource {
-  Future<List<CommentModel>> getAllById(String restaurantId);
+  Future<List<CommentModel>> getAllById(String restaurantId, int size);
   Future<void> add(CommentModel comment);
 }
 
@@ -35,18 +35,22 @@ class CommentRemoteDatasourceImpl implements CommentRemoteDatasource {
   }
 
   @override
-  Future<List<CommentModel>> getAllById(String restaurantId) async {
-    try {
-      final response = await _apiClient.get('/comments/$restaurantId');
-      final List<dynamic> commentList = response as List;
+  Future<List<CommentModel>> getAllById(String restaurantId, int size, {int page = 0}) async {
+  try {
+    // 1. Thêm tham số page và size vào URL theo đúng API mới
+    final response = await _apiClient.get('/comments/$restaurantId?page=$page&size=$size');
 
-      return commentList.map((json) => CommentModel.fromJson(json)).toList();
-    } on NotFoundException {
-      // Nếu API trả 404, trả về list rỗng
-      return [];
-    } catch (e) {
-      // Ném các lỗi khác (ServerException, NetworkException...)
-      rethrow;
-    }
+    // 2. Ép kiểu response về Map vì Spring Page trả về một Object {} không phải Array []
+    final Map<String, dynamic> data = response as Map<String, dynamic>;
+
+    // 3. Lấy danh sách từ trường 'content'
+    final List<dynamic> commentList = data['content'] as List;
+
+    return commentList.map((json) => CommentModel.fromJson(json)).toList();
+  } on NotFoundException {
+    return [];
+  } catch (e) {
+    rethrow;
   }
+}
 }

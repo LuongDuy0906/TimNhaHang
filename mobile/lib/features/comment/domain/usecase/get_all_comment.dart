@@ -6,7 +6,7 @@ class GetAllComment {
 
   GetAllComment(this.commentRepository);
 
-  Future<List<Comment>> call(String restaurantId) {
-    return commentRepository.getCommentById(restaurantId);
+  Future<List<Comment>> call(String restaurantId, {int size = 2}) {
+    return commentRepository.getCommentById(restaurantId, size);
   }
 }

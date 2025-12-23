@@ -63,8 +63,7 @@ class _HomePageState extends State<HomePage> {
     if (!mounted) return;
     setState(
       () => isLoading = true,
-    ); // Bắt đầu tải dữ liệu vẽ lại trang gọi đến build nó gọi _buildBody kiểm
-    // tra isLoading để hiện CircularProgressIndicator dòng 132
+    );
 
     try {
       final restaurants = await _getAllRestaurants();
